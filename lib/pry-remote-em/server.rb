@@ -221,6 +221,9 @@ module PryRemoteEm
       elsif j['ssc'] # shell ctrl-c
         @shell_cmd.close_connection
 
+        # added by banisterfiend for prymium
+      elsif j['br']
+        send_data({ :br => Object.constants })
       else
         warn "received unexpected data: #{j.inspect}"
       end # j['d']
