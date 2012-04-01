@@ -223,7 +223,8 @@ module PryRemoteEm
 
         # added by banisterfiend for prymium
       elsif j['br']
-        send_data({ :br => Object.constants })
+
+        send_data({ :br => Hash[Object.constants { |v| Module === Object.const_get(v) }.zip([false].cycle)] })
       else
         warn "received unexpected data: #{j.inspect}"
       end # j['d']
