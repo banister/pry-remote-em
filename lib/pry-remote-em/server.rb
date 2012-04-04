@@ -167,7 +167,7 @@ module PryRemoteEm
     # indicating whether nested classes exist under it
     # @param [Module] mod The module
     def browser_hash_for(mod)
-      mod.constants.each_with_object({}) do |c, h|
+      mod.constants(false).each_with_object({}) do |c, h|
         if (o = mod.const_get(c)).is_a?(Module) then
           begin
             h[c] = o.constants(false).any? { |c| o.const_get(c).is_a? Module }
