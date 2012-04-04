@@ -162,6 +162,22 @@ module PryRemoteEm
       @peer_port
     end
 
+    # added by banisterfiend, return a hash of nests classes/modules for mod
+    # each key in hash is the class/module and the value is true/false
+    # indicating whether nested classes exist under it
+    # @param [Module] mod The module
+    def browser_hash_for(mod)
+      mod.constants.each_with_object({}) do |c, h|
+        if (o = mod.const_get(c)).is_a?(Module) then
+          begin
+            h[c] = o.constants(false).any? { |c| o.const_get(c).is_a? Module }
+          rescue
+            binding.pry
+          end
+        end
+      end
+    end
+
     def receive_json(j)
       return send_data({:a => false}) if @auth_required && !j['a']
 
@@ -224,7 +240,16 @@ module PryRemoteEm
         # added by banisterfiend for prymium
       elsif j['br']
 
-        send_data({ :br => Hash[Object.constants { |v| Module === Object.const_get(v) }.zip([false].cycle)] })
+        begin
+          mod = eval(j['br'])
+        rescue
+          binding.pry
+        end
+
+        browser_hash = browser_hash_for(mod)
+
+        # Hash[Object.constants { |v| Module === Object.const_get(v) }.zip([false].cycle)]
+        send_data({ :br => [j['br'], browser_hash] })
       else
         warn "received unexpected data: #{j.inspect}"
       end # j['d']
