@@ -172,7 +172,7 @@ module PryRemoteEm
           begin
             h[c] = o.constants(false).any? { |c| o.const_get(c).is_a? Module }
           rescue
-            binding.pry
+            next
           end
         end
       end
