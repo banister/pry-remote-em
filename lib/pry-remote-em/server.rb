@@ -2,6 +2,8 @@ require 'pry'
 require 'logger'
 require 'pry-remote-em'
 require 'pry-remote-em/server/shell_cmd'
+require 'pry-remote-em/class_browser_manager'
+
 # How it works with Pry
 #
 # When PryRemoteEm.run is called it registers with EventMachine for a given ip
@@ -240,16 +242,21 @@ module PryRemoteEm
         # added by banisterfiend for prymium
       elsif j['br']
 
-        begin
-          mod = eval(j['br'])
-        rescue
-          binding.pry
+        action, target = j['br']
+
+        case action
+        when "module_info"
+          module_info = ClassBrowserManager.module_info_for(target)
+          send_data({ :br => [action, target, module_info] })
+        when "method_source"
+          method_source = ClassBrowserManager.method_source_for(target)
+          send_data({ :br => [action, target, method_source] })
+        when "module_source"
+          module_source = ClassBrowserManager.module_source_for(target)
+          send_data({ :br => [action, target, module_source] })
+        else
+          warn "unknown option #{action} for browser ('br') channel!"
         end
-
-        browser_hash = browser_hash_for(mod)
-
-        # Hash[Object.constants { |v| Module === Object.const_get(v) }.zip([false].cycle)]
-        send_data({ :br => [j['br'], browser_hash] })
       else
         warn "received unexpected data: #{j.inspect}"
       end # j['d']
