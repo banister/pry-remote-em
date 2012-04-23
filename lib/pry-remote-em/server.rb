@@ -249,13 +249,13 @@ module PryRemoteEm
           module_info = ClassBrowserManager.module_info_for(target)
           send_data({ :br => [action, target, module_info] })
         when "method_source"
-          method_source = ClassBrowserManager.method_source_for(target)
+          method_source = ClassBrowserManager.method_source_for(target) rescue nil
           send_data({ :br => [action, target, method_source] })
         when "module_source"
-          module_source = ClassBrowserManager.module_source_for(target)
+          module_source = ClassBrowserManager.module_source_for(target) rescue nil
           send_data({ :br => [action, target, module_source] })
         else
-          warn "unknown option #{action} for browser ('br') channel!"
+          warn "unknown option: `#{action}` for browser ('br') channel!"
         end
       else
         warn "received unexpected data: #{j.inspect}"
