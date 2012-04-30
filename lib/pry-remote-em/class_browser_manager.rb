@@ -2,7 +2,7 @@ class ClassBrowserManager
   class << self
     def module_info_for(mod_name)
       mod = Pry::WrappedModule.from_str(mod_name)
-      method_hash_for(mod).merge(module_hash_for(mod))
+      module_hash_for(mod)
     end
 
     def method_source_for(meth_name)
