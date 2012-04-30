@@ -254,6 +254,9 @@ module PryRemoteEm
         when "module_source"
           module_source = ClassBrowserManager.module_source_for(target) rescue nil
           send_data({ :br => [action, target, module_source] })
+        when "context_data"
+          context_data = ClassBrowserManager.context_data_for(target) rescue nil
+          send_data({ :br => [action, target, context_data] })
         else
           warn "unknown option: `#{action}` for browser ('br') channel!"
         end

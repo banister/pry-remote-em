@@ -13,13 +13,42 @@ class ClassBrowserManager
       Pry::WrappedModule.from_str(mod_name).source
     end
 
+    def instance_methods_for(mod)
+      all_from_common(mod, :instance_method)
+    end
+
+    def methods_for(mod)
+      all_from_common(mod, :method)
+    end
+
+    def context_data_for(obj)
+      obj = Pry::WrappedModule.from_str(obj)
+
+      h = {}
+
+      if obj.is_a?(Module)
+        h["instance_methods"] = instance_methods_for(obj)
+        h["constants"] = obj.constants(false)
+      end
+
+      h["methods"] = methods_for(obj)
+      h["instance_variables"] = obj.instance_variables
+      h
+    end
+
     private
-    def method_hash_for(mod)
-      { :methods => {
-          :instance_methods => mod.instance_methods(false),
-          :class_methods => mod.methods(false)
-        }
-      }
+    def all_from_common(mod, method_type)
+      %w(public protected private).map do |visibility|
+        safe_send(mod, :"#{visibility}_#{method_type}s", false).select do |method_name|
+          if method_type == :method
+            safe_send(mod, method_type, method_name).owner == class << mod; self; end
+          else
+            safe_send(mod, method_type, method_name).owner == mod
+          end
+        end.map do |method_name|
+          Pry::Method.new(safe_send(mod, method_type, method_name), :visibility => visibility.to_sym)
+        end
+      end.flatten
     end
 
     def module_hash_for(mod)
