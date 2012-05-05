@@ -251,6 +251,12 @@ module PryRemoteEm
         when "method_source"
           method_source = ClassBrowserManager.method_source_for(target) rescue nil
           send_data({ :br => [action, target, method_source] })
+        when "method_doc"
+          method_doc = ClassBrowserManager.method_doc_for(target) rescue nil
+          send_data({ :br => [action, target, method_doc] })
+
+        when "method_update"
+#          ClassBrowserManager.update_method_code(target, data)
         when "module_source"
           module_source = ClassBrowserManager.module_source_for(target) rescue nil
           send_data({ :br => [action, target, module_source] })
@@ -285,7 +291,8 @@ module PryRemoteEm
     end
 
     def send_last_prompt
-      @auth_required ? @after_auth.push({:p => @last_prompt}) :  send_data({:p => @last_prompt})
+      # FIXME
+      @auth_required ? @after_auth.push({:p => @last_prompt}) : nil# send_data({:p => @last_prompt})
     end
 
     # Sends a chat message to the client.
@@ -343,7 +350,9 @@ module PryRemoteEm
 
     def readline(prompt)
       @last_prompt = prompt
-      @auth_required ? @after_auth.push({:p => prompt}) : send_data({:p => prompt})
+
+      # FIXME
+      @auth_required ? @after_auth.push({:p => prompt}) : nil #send_data({:p => prompt})
       return @lines.shift unless @lines.empty?
       @waiting = Fiber.current
       return Fiber.yield
@@ -363,8 +372,9 @@ module PryRemoteEm
       @compl_proc = compl
     end
 
+    # FIXME:p
     def tty?
-      true # might be a very bad idea ....
+      false #true # might be a very bad idea ....
     end
 
     def flush

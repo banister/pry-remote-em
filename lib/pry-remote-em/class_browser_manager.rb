@@ -9,6 +9,10 @@ class ClassBrowserManager
       Pry::Method.from_str(meth_name).source
     end
 
+    def method_doc_for(meth_name)
+      Pry::Method.from_str(meth_name).doc
+    end
+
     def module_source_for(mod_name)
       Pry::WrappedModule.from_str(mod_name).source
     end
@@ -22,18 +26,27 @@ class ClassBrowserManager
     end
 
     def context_data_for(obj)
-      obj = Pry::WrappedModule.from_str(obj)
+      obj = Pry::WrappedModule.from_str(obj).instance_variable_get(:@wrapped)
 
       h = {}
 
       if obj.is_a?(Module)
-        h["instance_methods"] = instance_methods_for(obj)
-        h["constants"] = obj.constants(false)
+        h["instance_methods"] = [obj, instance_methods_for(obj).map(&:name)]
+        h["constants"] = [obj, obj.constants(false)]
       end
 
-      h["methods"] = methods_for(obj)
-      h["instance_variables"] = obj.instance_variables
+      h["methods"] =[obj,  methods_for(obj).map(&:name)]
+      h["instance_variables"] = [obj, obj.instance_variables]
       h
+    end
+
+    def update_method_code(meth_name, source)
+      meth = Pry::Method.from_str(meth_name)
+      if meth.is_a?(Method)
+        meth.owner.instance_eval source
+      else
+        meth.owner.module_eval source
+      end
     end
 
     private
@@ -64,5 +77,10 @@ class ClassBrowserManager
 
       { :modules => k }
     end
+
+    def safe_send(obj, method, *args, &block)
+      (Module === obj ? Module : Object).instance_method(method).bind(obj).call(*args, &block)
+    end
+
   end
 end
