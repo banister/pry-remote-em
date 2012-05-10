@@ -242,30 +242,35 @@ module PryRemoteEm
         # added by banisterfiend for prymium
       elsif j['br']
 
-        action, target = j['br']
+        EM.defer do
+          action, target = j['br']
 
-        case action
-        when "module_info"
-          module_info = ClassBrowserManager.module_info_for(target)
-          send_data({ :br => [action, target, module_info] })
-        when "method_source"
-          method_source = ClassBrowserManager.method_source_for(target) rescue nil
-          send_data({ :br => [action, target, method_source] })
-        when "method_doc"
-          method_doc = ClassBrowserManager.method_doc_for(target) rescue nil
-          send_data({ :br => [action, target, method_doc] })
+          case action
+          when "module_info"
+            module_info = ClassBrowserManager.module_info_for(target)
+            EM.next_tick do
+              send_data({ :br => [action, target, module_info] })
+            end
+          when "method_source"
+            method_source = ClassBrowserManager.method_source_for(target) rescue nil
+            EM.next_tick { send_data({ :br => [action, target, method_source] }) }
+          when "method_doc"
+            method_doc = ClassBrowserManager.method_doc_for(target) rescue nil
+            EM.next_tick { send_data({ :br => [action, target, method_doc] }) }
 
-        when "method_update"
-#          ClassBrowserManager.update_method_code(target, data)
-        when "module_source"
-          module_source = ClassBrowserManager.module_source_for(target) rescue nil
-          send_data({ :br => [action, target, module_source] })
-        when "context_data"
-          context_data = ClassBrowserManager.context_data_for(target) #rescue nil
-          send_data({ :br => [action, target, context_data] })
-        else
-          warn "unknown option: `#{action}` for browser ('br') channel!"
+          when "method_update"
+            #          ClassBrowserManager.update_method_code(target, data)
+          when "module_source"
+            module_source = ClassBrowserManager.module_source_for(target) rescue nil
+            EM.next_tick { send_data({ :br => [action, target, module_source] }) }
+          when "context_data"
+            context_data = ClassBrowserManager.context_data_for(target) #rescue nil
+            EM.next_tick { send_data({ :br => [action, target, context_data] }) }
+          else
+            warn "unknown option: `#{action}` for browser ('br') channel!"
+          end
         end
+
       else
         warn "received unexpected data: #{j.inspect}"
       end # j['d']
@@ -351,7 +356,7 @@ module PryRemoteEm
     def readline(prompt)
       @last_prompt = prompt
 
-      # FIXME
+      # FIXME, we're blocking prompt from being sent
       @auth_required ? @after_auth.push({:p => prompt}) : nil #send_data({:p => prompt})
       return @lines.shift unless @lines.empty?
       @waiting = Fiber.current
@@ -372,7 +377,7 @@ module PryRemoteEm
       @compl_proc = compl
     end
 
-    # FIXME:p
+    # FIXME:
     def tty?
       false #true # might be a very bad idea ....
     end
