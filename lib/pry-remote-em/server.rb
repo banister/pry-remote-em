@@ -4,6 +4,7 @@ require 'pry-remote-em'
 require 'pry-remote-em/server/shell_cmd'
 require 'pry-remote-em/class_browser_manager'
 
+
 # How it works with Pry
 #
 # When PryRemoteEm.run is called it registers with EventMachine for a given ip
@@ -34,6 +35,8 @@ require 'pry-remote-em/class_browser_manager'
 # http://www.igvita.com/2010/03/22/untangling-evented-code-with-ruby-fibers/
 
 module PryRemoteEm
+  DataQueue = EM::Queue.new
+
   module Server
     include JsonProto
 
@@ -137,6 +140,18 @@ module PryRemoteEm
       @log.info("[pry-remote-em] received client connection from #{ip}:#{port}")
       send_data({:g => "PryRemoteEm #{VERSION} #{@opts[:tls] ? 'pryems' : 'pryem'}"})
       @opts[:tls] ? start_tls : (@auth_required && send_data({:a => false}))
+
+      EM.add_periodic_timer(1) do
+        DataQueue.pop until DataQueue.size == 1 || DataQueue.empty?
+
+        if !DataQueue.empty?
+          EM.next_tick do
+            DataQueue.pop do |v|
+              send_data({:focus => v.object_id})
+            end
+          end
+        end
+      end
       PryRemoteEm::Server.register(@obj, self)
     end
 
