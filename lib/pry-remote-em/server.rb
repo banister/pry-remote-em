@@ -3,7 +3,15 @@ require 'logger'
 require 'pry-remote-em'
 require 'pry-remote-em/server/shell_cmd'
 require 'pry-remote-em/class_browser_manager'
+require 'observer'
 
+
+
+class Module
+  def instances
+    ObjectSpace.each_object(self).to_a
+  end
+end
 
 # How it works with Pry
 #
@@ -39,8 +47,23 @@ module PryRemoteEm
 
   module Server
     include JsonProto
+    extend Observable
+
+    @pry_instances = []
 
     class << self
+
+      attr_accessor :pry_instances
+
+      def pry_instance
+        pry_instances.last
+      end
+
+      def change_focus(v)
+        changed
+        notify_observers(v)
+      end
+
       # Start a pry-remote-em server
       # @param [Object] obj the object to bind pry to
       # @param [String] ip the ip address to listen on
@@ -59,7 +82,10 @@ module PryRemoteEm
             Fiber.new {
               begin
                 yield pre if block_given?
-                Pry.start(obj, :input => pre, :output => pre)
+                #Pry.start(obj, :input => pre, :output => pre)
+                pry_instance.input = pre
+                pry_instance.output = pre
+                pry_instance.repl
               ensure
                 pre.close_connection
               end
@@ -97,6 +123,25 @@ module PryRemoteEm
       end
     end # class << self
 
+
+    def update(target)
+      context_data = ClassBrowserManager.context_data_for(target) #rescue nil
+      EM.next_tick { send_data({ :br => ["context_data", target.to_s, context_data] }) }
+
+      @pry_instance.binding_stack.push Pry.binding_for(target)
+
+      EM.next_tick do
+        send_data(:d => "user changed focus to #{target}" )
+      end
+    end
+
+    def create_pry_instance
+      @pry_instance = Pry.new
+      puts "pry instance object is #{@pry_instance}"
+      Pry.initial_session_setup
+      Server.pry_instances.push(@pry_instance)
+    end
+
     def initialize(obj, opts = {:tls => false})
       @obj              = obj
       @opts             = opts
@@ -119,6 +164,11 @@ module PryRemoteEm
       @auth_tries       = 5
       # Data to be sent after the user successfully authenticates if authentication is required
       @after_auth       = []
+
+      create_pry_instance
+
+      Server.add_observer(self)
+
       return unless (a = opts[:auth])
       if a.is_a?(Proc)
         return fail("auth handler Procs must take two arguments not (#{a.arity})") unless a.arity == 2
@@ -132,8 +182,19 @@ module PryRemoteEm
       end
     end
 
+    def focus_object
+      @pry_instance.binding_stack.last.eval('self')
+    end
+
+    def focus_object=(v)
+      @pry_instance.binding_stack.push(Pry.binding_for(v))
+    end
+
     def post_init
       @lines = []
+
+      # The current focus object for the session
+      @pry_index = Server.pry_instances.size - 1
       Pry.config.pager, @old_pager = false, Pry.config.pager
       @auth_required  = @auth
       port, ip        = Socket.unpack_sockaddr_in(get_peername)
@@ -147,7 +208,9 @@ module PryRemoteEm
         if !DataQueue.empty?
           EM.next_tick do
             DataQueue.pop do |v|
-              send_data({:focus => v.object_id})
+
+              # cf for 'change focus'
+              send_data({:cf => focus_object.to_s})
             end
           end
         end
@@ -267,7 +330,8 @@ module PryRemoteEm
               send_data({ :br => [action, target, module_info] })
             end
           when "method_source"
-            method_source = ClassBrowserManager.method_source_for(target) rescue nil
+            method_name, kind = target
+            method_source = ClassBrowserManager.method_source_for(focus_object, method_name, kind)
             EM.next_tick { send_data({ :br => [action, target, method_source] }) }
           when "method_doc"
             method_doc = ClassBrowserManager.method_doc_for(target) rescue nil

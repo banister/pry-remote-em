@@ -5,8 +5,13 @@ class ClassBrowserManager
       module_hash_for(mod)
     end
 
-    def method_source_for(meth_name)
-      Pry::Method.from_str(meth_name).source
+    def method_source_for(obj, name, kind)
+      if kind == "instance_methods"
+        obj.instance_method(name).source
+      else
+        obj.method(name).source
+      end
+      # Pry::Method.from_str(meth_name).source
     end
 
     def method_doc_for(meth_name)
@@ -26,7 +31,7 @@ class ClassBrowserManager
     end
 
     def context_data_for(obj)
-      obj = Pry::WrappedModule.from_str(obj).instance_variable_get(:@wrapped)
+      # obj = Pry::WrappedModule.from_str(obj).instance_variable_get(:@wrapped)
 
       h = {}
 
@@ -54,7 +59,11 @@ class ClassBrowserManager
       %w(public protected private).map do |visibility|
         safe_send(mod, :"#{visibility}_#{method_type}s", false).select do |method_name|
           if method_type == :method
-            safe_send(mod, method_type, method_name).owner == class << mod; self; end
+            if mod.is_a?(Module)
+              safe_send(mod, method_type, method_name).owner == (class << mod; self; end)
+            else
+              safe_send(mod, method_type, method_name).owner <= mod.class
+            end
           else
             safe_send(mod, method_type, method_name).owner == mod
           end
