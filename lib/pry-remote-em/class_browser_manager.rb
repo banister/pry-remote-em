@@ -7,9 +7,9 @@ class ClassBrowserManager
 
     def method_source_for(obj, name, kind)
       if kind == "instance_methods"
-        obj.instance_method(name).source
+        Pry::Method(obj.instance_method(name)).source
       else
-        obj.method(name).source
+        Pry::Method(obj.method(name)).source
       end
       # Pry::Method.from_str(meth_name).source
     end

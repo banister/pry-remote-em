@@ -4,14 +4,15 @@ require 'pry-remote-em'
 require 'pry-remote-em/server/shell_cmd'
 require 'pry-remote-em/class_browser_manager'
 require 'observer'
-
-
+require 'pry-remote-em/command_overrides'
 
 class Module
   def instances
     ObjectSpace.each_object(self).to_a
   end
 end
+
+Pry.color = false
 
 # How it works with Pry
 #
@@ -331,7 +332,11 @@ module PryRemoteEm
             end
           when "method_source"
             method_name, kind = target
-            method_source = ClassBrowserManager.method_source_for(focus_object, method_name, kind)
+            begin
+              method_source = ClassBrowserManager.method_source_for(focus_object, method_name, kind)
+            rescue
+              method_source = nil
+            end
             EM.next_tick { send_data({ :br => [action, target, method_source] }) }
           when "method_doc"
             method_doc = ClassBrowserManager.method_doc_for(target) rescue nil
@@ -343,6 +348,7 @@ module PryRemoteEm
             module_source = ClassBrowserManager.module_source_for(target) rescue nil
             EM.next_tick { send_data({ :br => [action, target, module_source] }) }
           when "context_data"
+            target = eval(target)
             context_data = ClassBrowserManager.context_data_for(target) #rescue nil
             EM.next_tick { send_data({ :br => [action, target, context_data] }) }
           else
