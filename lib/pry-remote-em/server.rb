@@ -183,6 +183,10 @@ module PryRemoteEm
       end
     end
 
+    def focus_object_binding
+      @pry_instance.binding_stack.last
+    end
+
     def focus_object
       @pry_instance.binding_stack.last.eval('self')
     end
@@ -339,9 +343,13 @@ module PryRemoteEm
             end
             EM.next_tick { send_data({ :br => [action, target, method_source] }) }
           when "method_doc"
-            method_doc = ClassBrowserManager.method_doc_for(target) rescue nil
+            method_name, kind = target
+            begin
+              method_doc = ClassBrowserManager.method_doc_for(focus_object, method_name, kind)
+            rescue
+              method_doc = nil
+            end
             EM.next_tick { send_data({ :br => [action, target, method_doc] }) }
-
           when "method_update"
             #          ClassBrowserManager.update_method_code(target, data)
           when "module_source"
@@ -351,6 +359,34 @@ module PryRemoteEm
             target = eval(target)
             context_data = ClassBrowserManager.context_data_for(target) #rescue nil
             EM.next_tick { send_data({ :br => [action, target, context_data] }) }
+          when "variable_value"
+            variable_value = focus_object.instance_variable_get(target).to_s
+            variable_class = focus_object.instance_variable_get(target).class.to_s
+            variable_info = { :inspect => variable_value, :class => variable_class }
+            EM.next_tick { send_data({ :br => [action, target, variable_info] }) }
+          when "variable_value="
+            name, eval_string = target
+
+            success = true
+            begin
+              if !eval_string.empty?
+                focus_object.instance_variable_set name,
+                focus_object_binding.eval(eval_string)
+              end
+            rescue Exception
+              success = false
+            end
+
+            variable_value = focus_object.instance_variable_get(name).to_s
+            variable_class = focus_object.instance_variable_get(name).class.to_s
+            variable_info = { :inspect => variable_value, :class => variable_class }
+
+            if success
+              EM.next_tick { send_data({ :br => ["variable_value", name, variable_info] }) }
+            else
+              EM.next_tick { send_data({ :br => ["variable_value=", name, false] }) }
+            end
+
           else
             warn "unknown option: `#{action}` for browser ('br') channel!"
           end

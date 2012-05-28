@@ -1,4 +1,4 @@
-system("gem uninstall pry-remote-em") rescue nil
+system("gem uninstall -x pry-remote-em") rescue nil
 
 system("gem build pry-remote-em.gemspec")
 

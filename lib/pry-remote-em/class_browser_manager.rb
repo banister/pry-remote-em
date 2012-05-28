@@ -11,11 +11,14 @@ class ClassBrowserManager
       else
         Pry::Method(obj.method(name)).source
       end
-      # Pry::Method.from_str(meth_name).source
     end
 
-    def method_doc_for(meth_name)
-      Pry::Method.from_str(meth_name).doc
+    def method_doc_for(obj, name, kind)
+      if kind == "instance_methods"
+        Pry::Method(obj.instance_method(name)).doc
+      else
+        Pry::Method(obj.method(name)).doc
+      end
     end
 
     def module_source_for(mod_name)
