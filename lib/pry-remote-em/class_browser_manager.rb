@@ -41,6 +41,7 @@ class ClassBrowserManager
       if obj.is_a?(Module)
         h["instance_methods"] = [obj, instance_methods_for(obj).map(&:name)]
         h["constants"] = [obj, obj.constants(false)]
+        h["instances"] = [obj, ObjectSpace.each_object(obj).map(&:to_s)]
       end
 
       h["methods"] =[obj,  methods_for(obj).map(&:name)]
